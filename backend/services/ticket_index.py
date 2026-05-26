@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from collections import Counter
 from functools import lru_cache
+import os
 from pathlib import Path
 import re
+from types import SimpleNamespace
 from typing import Any
+from urllib import request as url_request
+from urllib.error import URLError
+import json
 
 import numpy as np
 from sklearn.decomposition import PCA
@@ -24,6 +29,48 @@ except ImportError:
     from ticket_data import generate_support_tickets
 
 
+class LocalOllamaLLM:
+    def __init__(self) -> None:
+        self.base_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+        self.model = os.getenv("OLLAMA_MODEL", "llama3.2")
+
+    def invoke(self, messages: list[Any]) -> SimpleNamespace:
+        payload = {
+            "model": self.model,
+            "stream": False,
+            "messages": [
+                {
+                    "role": self._role_for_message(message),
+                    "content": str(message.content),
+                }
+                for message in messages
+            ],
+        }
+        body = json.dumps(payload).encode("utf-8")
+        req = url_request.Request(
+            f"{self.base_url}/api/chat",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with url_request.urlopen(req, timeout=45) as response:
+                data = json.loads(response.read().decode("utf-8"))
+        except URLError as exc:
+            raise RuntimeError("Ollama is not running or the model is unavailable") from exc
+
+        return SimpleNamespace(content=data.get("message", {}).get("content", ""))
+
+    @staticmethod
+    def _role_for_message(message: Any) -> str:
+        name = message.__class__.__name__.lower()
+        if "system" in name:
+            return "system"
+        if "ai" in name:
+            return "assistant"
+        return "user"
+
+
 class TicketIndex:
     def __init__(self) -> None:
         self.tickets = generate_support_tickets()
@@ -38,7 +85,40 @@ class TicketIndex:
         ).toarray()
         self.collection = self._build_vector_store()
         self.plot_points = self._project_to_2d()
+        self.llm = self._build_llm()
         self.tools = self._build_tools()
+
+    def _build_llm(self) -> Any | None:
+        provider = os.getenv("LLM_PROVIDER", "auto").lower()
+
+        if provider in {"auto", "ollama", "local", "free"}:
+            return LocalOllamaLLM()
+
+        if provider in {"auto", "gemini", "google"} and os.getenv("GOOGLE_API_KEY"):
+            try:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+
+                return ChatGoogleGenerativeAI(
+                    model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+                    temperature=0.2,
+                )
+            except Exception:
+                if provider in {"gemini", "google"}:
+                    raise
+
+        if provider in {"auto", "openai"} and os.getenv("OPENAI_API_KEY"):
+            try:
+                from langchain_openai import ChatOpenAI
+
+                return ChatOpenAI(
+                    model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                    temperature=0.2,
+                )
+            except Exception:
+                if provider == "openai":
+                    raise
+
+        return None
 
     def _build_vector_store(self) -> Any | None:
         try:
@@ -179,7 +259,66 @@ class TicketIndex:
                 tool_used="Ticket Counter Tool",
             )
 
-        results = self.semantic_search(message)
+        results = self.semantic_search(message, limit=8)
+        if self.llm is not None:
+            try:
+                return ChatResponse(
+                    reply=self._answer_with_llm(message, results),
+                    tool_used="RAG Insight Tool (LLM + ChromaDB)",
+                )
+            except RuntimeError:
+                fallback = self._fallback_semantic_answer(results)
+                fallback.reply = (
+                    "Local Ollama is not reachable, so I used vector search fallback.\n\n"
+                    + fallback.reply
+                )
+                return fallback
+
+        return self._fallback_semantic_answer(results)
+
+    def _answer_with_llm(self, question: str, tickets: list[dict[str, Any]]) -> str:
+        try:
+            from langchain_core.messages import HumanMessage, SystemMessage
+        except Exception:
+            return self._fallback_semantic_answer(tickets).reply
+
+        category_counts = Counter(ticket["category"] for ticket in self.tickets)
+        severity_counts = Counter(ticket["severity"] for ticket in self.tickets)
+        context = "\n".join(
+            (
+                f"{ticket['id']} | {ticket['category']} | {ticket['severity']} | "
+                f"score={ticket.get('score', 0)} | {ticket['text']}"
+            )
+            for ticket in tickets
+        )
+        corpus_summary = (
+            f"Category counts: {dict(category_counts)}\n"
+            f"Severity counts: {dict(severity_counts)}"
+        )
+
+        messages = [
+            SystemMessage(
+                content=(
+                    "You are an admin analytics assistant for a customer support team. "
+                    "Use only the retrieved ticket context and corpus summary. "
+                    "Give practical insights, patterns, likely root causes, and next actions. "
+                    "Cite ticket IDs when using specific examples. "
+                    "If the context is not enough, say what extra data is needed."
+                )
+            ),
+            HumanMessage(
+                content=(
+                    f"Admin question:\n{question}\n\n"
+                    f"Corpus summary:\n{corpus_summary}\n\n"
+                    f"Retrieved vector context from ChromaDB:\n{context}"
+                )
+            ),
+        ]
+
+        response = self.llm.invoke(messages)
+        return str(response.content)
+
+    def _fallback_semantic_answer(self, results: list[dict[str, Any]]) -> ChatResponse:
         categories = Counter(ticket["category"] for ticket in results)
         top_lines = [
             f"{ticket['id']} ({ticket['category']}, score {ticket['score']}): {ticket['text']}"

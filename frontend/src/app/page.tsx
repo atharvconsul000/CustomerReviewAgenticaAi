@@ -42,7 +42,7 @@ export default function Home() {
     {
       role: "assistant",
       content:
-        "Ask about historical tickets or count mentions. Try: How many tickets mention billing?",
+        "Ask for support insights, risks, themes, or counts. Try: What should we fix first for login users?",
       tool: "Admin AI Ready",
     },
   ]);

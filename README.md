@@ -17,12 +17,24 @@ A full-stack Agentic RAG and data science visualization app for customer support
 - `/reviews` lets signed-in users submit and view their own reviews.
 - `/admin/reviews` and `/admin/reviews/analysis` let admins analyze user review data.
 - `/plot-data` generates support tickets, converts each ticket into a 768-feature local embedding, projects those vectors into 2D with PCA, and returns Plotly-ready points.
-- `/chat` routes questions to one of two tools:
+- `/chat` routes admin questions to one of two tools:
   - **Semantic Search Tool** for questions like "What are the most common complaints about login?"
   - **Ticket Counter Tool** for questions like "How many tickets mention billing?"
+- `/chat` can use free local Ollama models to retrieve context from ChromaDB and produce admin insights using those tickets.
 - The frontend has a customer review portal and an admin dashboard. Agentic AI and vector visualization are admin-only.
 
-The current implementation uses a free local embedding path so the project runs without OpenAI, Gemini, or Groq keys. A hosted LLM provider can be added later by replacing the local router with a LangChain agent executor and provider-specific chat model.
+The current implementation uses a free local embedding path and supports free local LLM inference through Ollama, so the project can run without OpenAI, Gemini, or Groq keys.
+
+Free local AI setup:
+
+```bash
+ollama pull llama3.2
+ollama serve
+
+LLM_PROVIDER=ollama
+OLLAMA_MODEL=llama3.2
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+```
 
 ## Run It
 
