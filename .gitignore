@@ -1,0 +1,32 @@
+# Root .gitignore
+
+# Mac OS
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Backend
+backend/venv/
+backend/.venv/
+backend/data/chroma/
+backend/data/*.db
+backend/data/*.db-*
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/**/*.pyc
+backend/.env
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
