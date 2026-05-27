@@ -23,10 +23,10 @@ except Exception:
 
 try:
     from ..schemas import ChatResponse
-    from ..ticket_data import generate_support_tickets
+    from ..database import SessionLocal, Review
 except ImportError:
     from schemas import ChatResponse
-    from ticket_data import generate_support_tickets
+    from database import SessionLocal, Review
 
 
 class LocalOllamaLLM:
@@ -73,7 +73,31 @@ class LocalOllamaLLM:
 
 class TicketIndex:
     def __init__(self) -> None:
-        self.tickets = generate_support_tickets()
+        with SessionLocal() as db:
+            reviews = db.query(Review).all()
+        
+        self.tickets = []
+        for r in reviews:
+            self.tickets.append({
+                "id": f"REV-{r.id:04d}",
+                "category": r.category,
+                "title": f"Review {r.id}",
+                "text": r.comment,
+                "severity": f"{r.rating} star(s)",
+                "channel": "web",
+            })
+            
+        if not self.tickets:
+            self.tickets = [{
+                "id": "REV-0000",
+                "category": "None",
+                "title": "No Reviews",
+                "text": "There are no reviews in the database yet.",
+                "severity": "0 star(s)",
+                "channel": "web",
+            }]
+            
+
         self.vectorizer = HashingVectorizer(
             n_features=768,
             alternate_sign=False,
@@ -91,10 +115,7 @@ class TicketIndex:
     def _build_llm(self) -> Any | None:
         provider = os.getenv("LLM_PROVIDER", "auto").lower()
 
-        if provider in {"auto", "ollama", "local", "free"}:
-            return LocalOllamaLLM()
-
-        if provider in {"auto", "gemini", "google"} and os.getenv("GOOGLE_API_KEY"):
+        if provider in {"gemini", "google"} or (provider == "auto" and os.getenv("GOOGLE_API_KEY")):
             try:
                 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -106,7 +127,7 @@ class TicketIndex:
                 if provider in {"gemini", "google"}:
                     raise
 
-        if provider in {"auto", "openai"} and os.getenv("OPENAI_API_KEY"):
+        if provider in {"openai"} or (provider == "auto" and os.getenv("OPENAI_API_KEY")):
             try:
                 from langchain_openai import ChatOpenAI
 
@@ -117,6 +138,9 @@ class TicketIndex:
             except Exception:
                 if provider == "openai":
                     raise
+
+        if provider in {"auto", "ollama", "local", "free"}:
+            return LocalOllamaLLM()
 
         return None
 
@@ -163,6 +187,21 @@ class TicketIndex:
         return collection
 
     def _project_to_2d(self) -> list[dict[str, Any]]:
+        if len(self.tickets) < 2:
+            return [
+                {
+                    "id": ticket["id"],
+                    "x": 0.0,
+                    "y": 0.0,
+                    "label": ticket["category"],
+                    "title": ticket["title"],
+                    "text": ticket["text"],
+                    "severity": ticket["severity"],
+                    "channel": ticket["channel"],
+                }
+                for ticket in self.tickets
+            ]
+            
         pca = PCA(n_components=2, random_state=7)
         coords = self._normalize(pca.fit_transform(self.embeddings))
 
@@ -266,10 +305,10 @@ class TicketIndex:
                     reply=self._answer_with_llm(message, results),
                     tool_used="RAG Insight Tool (LLM + ChromaDB)",
                 )
-            except RuntimeError:
+            except Exception as e:
                 fallback = self._fallback_semantic_answer(results)
                 fallback.reply = (
-                    "Local Ollama is not reachable, so I used vector search fallback.\n\n"
+                    f"LLM request failed, so I used vector search fallback.\n\n"
                     + fallback.reply
                 )
                 return fallback
@@ -277,10 +316,7 @@ class TicketIndex:
         return self._fallback_semantic_answer(results)
 
     def _answer_with_llm(self, question: str, tickets: list[dict[str, Any]]) -> str:
-        try:
-            from langchain_core.messages import HumanMessage, SystemMessage
-        except Exception:
-            return self._fallback_semantic_answer(tickets).reply
+        from langchain_core.messages import HumanMessage, SystemMessage
 
         category_counts = Counter(ticket["category"] for ticket in self.tickets)
         severity_counts = Counter(ticket["severity"] for ticket in self.tickets)
@@ -300,9 +336,9 @@ class TicketIndex:
             SystemMessage(
                 content=(
                     "You are an admin analytics assistant for a customer support team. "
-                    "Use only the retrieved ticket context and corpus summary. "
+                    "Use only the retrieved review context and corpus summary. "
                     "Give practical insights, patterns, likely root causes, and next actions. "
-                    "Cite ticket IDs when using specific examples. "
+                    "Focus on the actual classifications, sentiments, and content rather than just citing IDs. "
                     "If the context is not enough, say what extra data is needed."
                 )
             ),
