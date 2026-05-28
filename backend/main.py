@@ -66,6 +66,14 @@ def on_startup() -> None:
     db = next(get_db())
     try:
         seed_demo_users(db)
+        # Seed reviews automatically if there are none
+        from .database import Review
+        if db.query(Review).count() == 0:
+            try:
+                from .seed_reviews import seed as seed_reviews
+            except ImportError:
+                from seed_reviews import seed as seed_reviews
+            seed_reviews()
     finally:
         db.close()
 
