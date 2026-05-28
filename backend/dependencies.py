@@ -57,6 +57,7 @@ def serialize_review(review, include_user: bool = False) -> ReviewResponse:
         rating=review.rating,
         category=review.category,
         comment=review.comment,
+        admin_response=review.admin_response,
         status=review.status,
         user_id=review.user_id,
         created_at=review.created_at.isoformat(),

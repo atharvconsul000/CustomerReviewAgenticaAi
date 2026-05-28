@@ -75,14 +75,16 @@ def generate_support_tickets(count: int = 120) -> list[dict[str, str]]:
     severity_cycle = ("low", "medium", "high", "urgent")
     channels = ("email", "chat", "phone", "portal")
 
+    names = ["Radhia", "Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Avery", "Quinn", "Parker", "Sam", "Jamie"]
+
     for idx in range(count):
         seed = TICKET_SEEDS[idx % len(TICKET_SEEDS)]
         phrase = seed.phrases[(idx // len(TICKET_SEEDS)) % len(seed.phrases)]
         severity = severity_cycle[idx % len(severity_cycle)]
         channel = channels[(idx // 3) % len(channels)]
-        customer_id = 1000 + idx
+        customer_name = names[idx % len(names)]
         text = (
-            f"Customer {customer_id} contacted support by {channel}. "
+            f"{customer_name} contacted support by {channel}. "
             f"They reported that they {phrase}. "
             f"The issue severity is {severity}. "
             f"Please investigate the {seed.category.lower()} workflow and follow up."

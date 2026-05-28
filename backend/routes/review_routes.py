@@ -2,18 +2,20 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 try:
     from ..database import Review, User, get_db
     from ..dependencies import get_current_user, require_admin, serialize_review
-    from ..schemas import ReviewCreate, ReviewResponse
+    from ..schemas import ReviewCreate, ReviewRespond, ReviewResponse, ReviewUpdate
+    from ..services.ticket_index import refresh_index
 except ImportError:
     from database import Review, User, get_db
     from dependencies import get_current_user, require_admin, serialize_review
-    from schemas import ReviewCreate, ReviewResponse
+    from schemas import ReviewCreate, ReviewRespond, ReviewResponse, ReviewUpdate
+    from services.ticket_index import refresh_index
 
 router = APIRouter(tags=["reviews"])
 
@@ -33,6 +35,7 @@ def create_review(
     db.add(review)
     db.commit()
     db.refresh(review)
+    refresh_index()
     return serialize_review(review)
 
 
@@ -50,6 +53,46 @@ def my_reviews(
     return [serialize_review(review) for review in reviews]
 
 
+@router.put("/reviews/{review_id}", response_model=ReviewResponse)
+def update_review(
+    review_id: int,
+    request: ReviewUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    review = db.query(Review).filter(Review.id == review_id, Review.user_id == current_user.id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+        
+    if request.rating is not None:
+        review.rating = request.rating
+    if request.category is not None:
+        review.category = request.category.strip()
+    if request.comment is not None:
+        review.comment = request.comment.strip()
+        
+    db.commit()
+    db.refresh(review)
+    refresh_index()
+    return serialize_review(review)
+
+
+@router.delete("/reviews/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_review(
+    review_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    review = db.query(Review).filter(Review.id == review_id, Review.user_id == current_user.id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+        
+    db.delete(review)
+    db.commit()
+    refresh_index()
+    return None
+
+
 @router.get("/admin/reviews", response_model=list[ReviewResponse])
 def admin_reviews(
     _: User = Depends(require_admin),
@@ -57,6 +100,43 @@ def admin_reviews(
 ):
     reviews = db.query(Review).join(User).order_by(Review.created_at.desc()).all()
     return [serialize_review(review, include_user=True) for review in reviews]
+
+
+@router.delete("/admin/reviews/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+def admin_delete_review(
+    review_id: int,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+        
+    db.delete(review)
+    db.commit()
+    refresh_index()
+    return None
+
+
+@router.put("/admin/reviews/{review_id}/respond", response_model=ReviewResponse)
+def admin_respond_review(
+    review_id: int,
+    request: ReviewRespond,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+        
+    review.admin_response = request.admin_response.strip() if request.admin_response.strip() else None
+    if review.admin_response:
+        review.status = "responded"
+        
+    db.commit()
+    db.refresh(review)
+    refresh_index()
+    return serialize_review(review, include_user=True)
 
 
 @router.get("/admin/reviews/analysis")

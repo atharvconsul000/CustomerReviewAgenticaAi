@@ -12,6 +12,7 @@ export type Review = {
   rating: number;
   category: string;
   comment: string;
+  admin_response?: string;
   status: string;
   created_at: string;
   user_name?: string;

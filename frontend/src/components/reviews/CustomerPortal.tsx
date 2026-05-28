@@ -1,6 +1,7 @@
 import type { Dispatch, FormEvent, SetStateAction } from "react";
-import type { Review } from "@/types";
+import type { ChatMessage, Review } from "@/types";
 import { ReviewList } from "./ReviewList";
+import { ChatConsole } from "../admin/ChatConsole";
 
 type ReviewForm = {
   rating: number;
@@ -13,15 +14,36 @@ export function CustomerPortal({
   setReviewForm,
   submitReview,
   reviews,
+  onDeleteReview,
+  messages,
+  input,
+  isLoading,
+  setInput,
+  submitMessage,
 }: {
   reviewForm: ReviewForm;
   setReviewForm: Dispatch<SetStateAction<ReviewForm>>;
   submitReview: (event: FormEvent<HTMLFormElement>) => void;
   reviews: Review[];
+  onDeleteReview: (id: number) => void;
+  messages: ChatMessage[];
+  input: string;
+  isLoading: boolean;
+  setInput: (value: string) => void;
+  submitMessage: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <div className="mx-auto grid max-w-7xl gap-4 px-4 py-4 lg:grid-cols-[0.8fr_1.2fr]">
-      <form onSubmit={submitReview} className="rounded-lg border border-slate-200 bg-white p-5">
+    <div className="mx-auto max-w-2xl px-4 py-8">
+      <div className="space-y-6">
+        <ChatConsole
+          messages={messages}
+          input={input}
+          isLoading={isLoading}
+          setInput={setInput}
+          submitMessage={submitMessage}
+        />
+        
+        <form onSubmit={submitReview} className="rounded-lg border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-semibold">Submit review</h2>
         <label className="mt-4 block text-sm font-medium">
           Rating
@@ -62,14 +84,15 @@ export function CustomerPortal({
               setReviewForm((current) => ({ ...current, comment: event.target.value }))
             }
             required
+            minLength={5}
           />
         </label>
         <button className="mt-4 rounded-md bg-slate-900 px-4 py-3 text-sm font-semibold text-white">
           Submit review
         </button>
-      </form>
+        </form>
+      </div>
 
-      <ReviewList reviews={reviews} title="My reviews" />
     </div>
   );
 }

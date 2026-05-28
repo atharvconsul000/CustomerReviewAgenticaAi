@@ -1,6 +1,18 @@
 import type { Review } from "@/types";
 
-export function ReviewList({ reviews, title }: { reviews: Review[]; title: string }) {
+export function ReviewList({ 
+  reviews, 
+  title,
+  isAdmin = false,
+  onDelete,
+  onRespond,
+}: { 
+  reviews: Review[]; 
+  title: string;
+  isAdmin?: boolean;
+  onDelete?: (id: number) => void;
+  onRespond?: (id: number, response: string) => void;
+}) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white">
       <header className="border-b border-slate-200 px-5 py-4">
@@ -26,6 +38,35 @@ export function ReviewList({ reviews, title }: { reviews: Review[]; title: strin
                 </span>
               </div>
               <p className="mt-3 text-sm leading-6 text-slate-700">{review.comment}</p>
+              
+              {review.admin_response && (
+                <div className="mt-3 rounded-md bg-blue-50 p-3 text-sm text-blue-900 border border-blue-100">
+                  <span className="font-semibold block mb-1">Admin Response:</span>
+                  {review.admin_response}
+                </div>
+              )}
+
+              <div className="mt-3 flex gap-2">
+                {onDelete && (
+                  <button 
+                    onClick={() => onDelete(review.id)}
+                    className="text-xs text-red-600 hover:underline font-medium"
+                  >
+                    Delete
+                  </button>
+                )}
+                {isAdmin && onRespond && (
+                  <button
+                    onClick={() => {
+                      const response = prompt("Enter admin response:", review.admin_response || "");
+                      if (response !== null) onRespond(review.id, response);
+                    }}
+                    className="text-xs text-blue-600 hover:underline font-medium"
+                  >
+                    {review.admin_response ? "Edit Response" : "Respond"}
+                  </button>
+                )}
+              </div>
             </article>
           ))
         )}

@@ -45,6 +45,7 @@ class Review(Base):
     rating: Mapped[int] = mapped_column(Integer)
     category: Mapped[str] = mapped_column(String(80), index=True)
     comment: Mapped[str] = mapped_column(Text)
+    admin_response: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="new")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 

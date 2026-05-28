@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import { FormEvent, useState } from "react";
 import type { Analysis, ChatMessage, PlotConfig, Review } from "@/types";
 import { Metric } from "@/components/common/Metric";
 import { ReviewList } from "@/components/reviews/ReviewList";
@@ -14,6 +14,8 @@ export function AdminDashboard({
   setInput,
   submitMessage,
   plot,
+  onDeleteReview,
+  onRespondReview,
 }: {
   analysis: Analysis | null;
   reviews: Review[];
@@ -23,9 +25,23 @@ export function AdminDashboard({
   setInput: (value: string) => void;
   submitMessage: (event: FormEvent<HTMLFormElement>) => void;
   plot: PlotConfig;
+  onDeleteReview: (id: number) => void;
+  onRespondReview: (id: number, response: string) => void;
 }) {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredReviews = reviews.filter((review) => {
+    const q = searchQuery.toLowerCase();
+    return (
+      review.category.toLowerCase().includes(q) ||
+      review.comment.toLowerCase().includes(q) ||
+      (review.admin_response?.toLowerCase().includes(q) ?? false) ||
+      (review.user_name?.toLowerCase().includes(q) ?? false)
+    );
+  });
+
   return (
-    <div className="mx-auto grid max-w-7xl gap-4 px-4 py-4 xl:grid-cols-[0.9fr_1.1fr]">
+    <div className="mx-auto grid max-w-7xl gap-4 px-4 py-4 lg:grid-cols-[0.9fr_1.1fr]">
       <section className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-3">
           <Metric label="Reviews" value={analysis?.total_reviews ?? 0} />
@@ -41,7 +57,23 @@ export function AdminDashboard({
           submitMessage={submitMessage}
         />
 
-        <ReviewList reviews={reviews} title="All customer reviews" />
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <input
+            type="text"
+            placeholder="Search reviews by name, category, or comment..."
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        <ReviewList 
+          reviews={filteredReviews} 
+          title="All customer reviews" 
+          isAdmin={true}
+          onDelete={onDeleteReview}
+          onRespond={onRespondReview}
+        />
       </section>
 
       <VectorPlot {...plot} />

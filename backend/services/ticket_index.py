@@ -85,6 +85,7 @@ class TicketIndex:
                 "text": r.comment,
                 "severity": f"{r.rating} star(s)",
                 "channel": "web",
+                "admin_response": r.admin_response,
             })
             
         if not self.tickets:
@@ -176,6 +177,7 @@ class TicketIndex:
                             "title": ticket["title"],
                             "severity": ticket["severity"],
                             "channel": ticket["channel"],
+                            "admin_response": ticket.get("admin_response") or "",
                         }
                         for _, ticket in new_tickets
                     ],
@@ -203,7 +205,12 @@ class TicketIndex:
             ]
             
         pca = PCA(n_components=2, random_state=7)
-        coords = self._normalize(pca.fit_transform(self.embeddings))
+        coords = pca.fit_transform(self.embeddings)
+        
+        # Add random jitter to scatter overlapping data points
+        np.random.seed(42)
+        jitter = np.random.normal(loc=0.0, scale=0.05, size=coords.shape)
+        coords = self._normalize(coords + jitter)
 
         return [
             {
@@ -215,6 +222,7 @@ class TicketIndex:
                 "text": ticket["text"],
                 "severity": ticket["severity"],
                 "channel": ticket["channel"],
+                "admin_response": ticket.get("admin_response"),
             }
             for ticket, coord in zip(self.tickets, coords)
         ]
@@ -323,7 +331,8 @@ class TicketIndex:
         context = "\n".join(
             (
                 f"{ticket['id']} | {ticket['category']} | {ticket['severity']} | "
-                f"score={ticket.get('score', 0)} | {ticket['text']}"
+                f"score={ticket.get('score', 0)} | Problem: {ticket['text']} | "
+                f"Help Offered: {ticket.get('admin_response') or 'None'}"
             )
             for ticket in tickets
         )
@@ -369,6 +378,55 @@ class TicketIndex:
             tool_used="Semantic Search Tool",
         )
 
+    def customer_route(self, message: str) -> ChatResponse:
+        results = self.semantic_search(message, limit=5)
+        if self.llm is not None:
+            try:
+                return ChatResponse(
+                    reply=self._answer_with_llm_customer(message, results),
+                    tool_used="Customer Support AI",
+                )
+            except Exception as e:
+                return ChatResponse(
+                    reply="I'm having trouble connecting to my AI brain right now, but a human agent will review your issue soon!",
+                    tool_used="Fallback Message",
+                )
+        return ChatResponse(
+            reply="AI is currently unavailable.",
+            tool_used="Fallback Message",
+        )
+
+    def _answer_with_llm_customer(self, question: str, tickets: list[dict[str, Any]]) -> str:
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        context = "\n".join(
+            (
+                f"Past Problem: {ticket['text']}\n"
+                f"Help that was offered: {ticket.get('admin_response') or 'No response yet'}"
+            )
+            for ticket in tickets
+        )
+
+        messages = [
+            SystemMessage(
+                content=(
+                    "You are a helpful customer support chatbot. "
+                    "A customer has a complaint or issue. "
+                    "Use the retrieved 'Past Problem' and 'Help that was offered' context to give them a short, helpful answer. "
+                    "Do not mention ticket IDs or internal metrics. Just provide the help they need based on what we offered before."
+                )
+            ),
+            HumanMessage(
+                content=(
+                    f"Customer issue:\n{question}\n\n"
+                    f"Retrieved context from similar past problems:\n{context}"
+                )
+            ),
+        ]
+
+        response = self.llm.invoke(messages)
+        return str(response.content)
+
     def _build_tools(self) -> list[Any]:
         if Tool is None:
             return []
@@ -389,3 +447,6 @@ class TicketIndex:
 @lru_cache(maxsize=1)
 def get_index() -> TicketIndex:
     return TicketIndex()
+
+def refresh_index() -> None:
+    get_index.cache_clear()

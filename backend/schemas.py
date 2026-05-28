@@ -44,11 +44,22 @@ class ReviewCreate(BaseModel):
     comment: str = Field(min_length=5, max_length=1200)
 
 
+class ReviewUpdate(BaseModel):
+    rating: int | None = Field(default=None, ge=1, le=5)
+    category: str | None = Field(default=None, min_length=2, max_length=80)
+    comment: str | None = Field(default=None, min_length=5, max_length=1200)
+
+
+class ReviewRespond(BaseModel):
+    admin_response: str = Field(max_length=2000)
+
+
 class ReviewResponse(BaseModel):
     id: int
     rating: int
     category: str
     comment: str
+    admin_response: str | None = None
     status: str
     user_id: int
     created_at: str

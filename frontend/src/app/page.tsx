@@ -144,6 +144,7 @@ export default function Home() {
 
     setReviewForm((current) => ({ ...current, comment: "" }));
     setNotice("Review submitted.");
+    alert("Review submitted successfully!");
     if (user) loadReviews(token, user.role);
   }
 
@@ -158,7 +159,8 @@ export default function Home() {
     setMessages((current) => [...current, { role: "user", content: message }]);
 
     try {
-      const response = await fetch(`${API_BASE}/chat`, {
+      const endpoint = user?.role === "admin" ? "/chat" : "/customer/chat";
+      const response = await fetch(`${API_BASE}${endpoint}`, {
         method: "POST",
         headers: authHeaders(token),
         body: JSON.stringify({ message }),
@@ -173,6 +175,45 @@ export default function Home() {
       setNotice("Admin AI request failed.");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function deleteReview(id: number) {
+    if (!confirm("Are you sure you want to delete this review?")) return;
+    try {
+      const response = await fetch(`${API_BASE}/reviews/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(token),
+      });
+      if (response.ok && user) loadReviews(token, user.role);
+    } catch {
+      setNotice("Delete failed.");
+    }
+  }
+
+  async function adminDeleteReview(id: number) {
+    if (!confirm("Are you sure you want to delete this review?")) return;
+    try {
+      const response = await fetch(`${API_BASE}/admin/reviews/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(token),
+      });
+      if (response.ok && user) loadReviews(token, user.role);
+    } catch {
+      setNotice("Delete failed.");
+    }
+  }
+
+  async function adminRespondReview(id: number, admin_response: string) {
+    try {
+      const response = await fetch(`${API_BASE}/admin/reviews/${id}/respond`, {
+        method: "PUT",
+        headers: authHeaders(token),
+        body: JSON.stringify({ admin_response }),
+      });
+      if (response.ok && user) loadReviews(token, user.role);
+    } catch {
+      setNotice("Respond failed.");
     }
   }
 
@@ -271,6 +312,8 @@ export default function Home() {
           setInput={setInput}
           submitMessage={submitMessage}
           plot={{ traces, layout, meta }}
+          onDeleteReview={adminDeleteReview}
+          onRespondReview={adminRespondReview}
         />
       ) : (
         <CustomerPortal
@@ -278,6 +321,12 @@ export default function Home() {
           setReviewForm={setReviewForm}
           submitReview={submitReview}
           reviews={reviews}
+          onDeleteReview={deleteReview}
+          messages={messages}
+          input={input}
+          isLoading={isLoading}
+          setInput={setInput}
+          submitMessage={submitMessage}
         />
       )}
     </main>
