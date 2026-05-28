@@ -140,6 +140,18 @@ class TicketIndex:
                 if provider == "openai":
                     raise
 
+        if provider in {"groq"} or (provider == "auto" and os.getenv("GROQ_API_KEY")):
+            try:
+                from langchain_groq import ChatGroq
+
+                return ChatGroq(
+                    model=os.getenv("GROQ_MODEL", "llama3-70b-8192"),
+                    temperature=0.2,
+                )
+            except Exception:
+                if provider == "groq":
+                    raise
+
         if provider in {"auto", "ollama", "local", "free"}:
             return LocalOllamaLLM()
 
