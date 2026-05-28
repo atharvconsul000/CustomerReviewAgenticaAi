@@ -1,87 +1,83 @@
-# Customer Support Analyzer
+# Customer Support Analyzer & AI Agent
 
-A full-stack Agentic RAG and data science visualization app for customer support tickets.
+![Status](https://img.shields.io/badge/Status-Active-success)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-000000?logo=next.js&logoColor=white)
 
-## Stack
+A full-stack, AI-powered customer support platform that uses **Retrieval-Augmented Generation (RAG)** to automate customer troubleshooting and provides advanced 3D **Principal Component Analysis (PCA)** analytics for administrators.
 
-- **Frontend**: React with Next.js, Tailwind CSS, Plotly.js
-- **Backend**: FastAPI
-- **Relational Database**: SQLite locally, PostgreSQL-ready through `DATABASE_URL`
-- **Vector Store**: Local ChromaDB, with a cosine-search fallback for lightweight environments
-- **AI/Data Layer**: LangChain tool wrappers, scikit-learn embeddings, PCA, and similarity search
-- **Auth**: JWT bearer auth with role-based access
+## 🚀 Live Demo
+- **Frontend:** [https://meticulous-unity-production-2005.up.railway.app](https://meticulous-unity-production-2005.up.railway.app)
+- **Backend API:** FastAPI running on Railway
 
-## What Works Now
+## ✨ Key Features
 
-- `/auth/signup`, `/auth/login`, and `/auth/me` support JWT sessions.
-- `/reviews` lets signed-in users submit and view their own reviews.
-- `/admin/reviews` and `/admin/reviews/analysis` let admins analyze user review data.
-- `/plot-data` generates support tickets, converts each ticket into a 768-feature local embedding, projects those vectors into 2D with PCA, and returns Plotly-ready points.
-- `/chat` routes admin questions to one of two tools:
-  - **Semantic Search Tool** for questions like "What are the most common complaints about login?"
-  - **Ticket Counter Tool** for questions like "How many tickets mention billing?"
-- `/chat` can use free local Ollama models to retrieve context from ChromaDB and produce admin insights using those tickets.
-- The frontend has a customer review portal and an admin dashboard. Agentic AI and vector visualization are admin-only.
+### 🔐 Secure Role-Based Access Control (RBAC)
+- Robust JWT-based authentication system.
+- Strict route protection and data compartmentalization between `admin` and `user` roles.
+- Passwords cryptographically hashed via `passlib`.
 
-The current implementation uses a free local embedding path and supports free local LLM inference through Ollama, so the project can run without OpenAI, Gemini, or Groq keys.
+### 🧠 Dual-Persona Retrieval-Augmented Generation (RAG)
+All support tickets are converted into mathematical vector embeddings and stored in a high-dimensional ChromaDB space. The AI dynamically changes its persona based on the logged-in user:
+- **For Customers:** Searches past semantically similar tickets and extracts the exact resolution offered by past agents, providing instant, accurate help without revealing internal ticket numbers.
+- **For Admins:** Analyzes corpus-level trends and ticket clusters to identify root causes, thematic spikes, and business vulnerabilities. 
 
-Free local AI setup:
+### 📊 3D PCA Data Visualization
+- Uses `scikit-learn` to mathematically compress 768-dimensional AI text embeddings into a 3D space via Principal Component Analysis.
+- Renders an interactive 3D scatter plot (using Plotly) on the Admin dashboard to visually identify clusters of similar customer complaints.
 
+## 🛠️ Technology Stack
+- **Frontend:** React, Next.js, Tailwind CSS, Recharts, Plotly.js
+- **Backend:** Python, FastAPI, SQLAlchemy
+- **Database:** PostgreSQL (Relational), ChromaDB (Vector Store)
+- **AI / LLMs:** LangChain, Groq (Llama 3.3), Scikit-Learn
+- **Deployment:** Railway
+
+## 💻 Local Development Setup
+
+### 1. Clone the Repository
 ```bash
-ollama pull llama3.2
-ollama serve
-
-LLM_PROVIDER=ollama
-OLLAMA_MODEL=llama3.2
-OLLAMA_BASE_URL=http://127.0.0.1:11434
+git clone https://github.com/atharvconsul000/CustomerReviewAgenticaAi.git
+cd CustomerReviewAgenticaAi
 ```
 
-## Run It
-
-Backend:
-
+### 2. Backend Setup
 ```bash
 cd backend
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/uvicorn main:app --reload
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-Frontend:
+Create a `.env` file in the `backend/` directory:
+```env
+DATABASE_URL=postgresql://username:password@localhost/dbname
+JWT_SECRET=your_super_secret_key
+GROQ_API_KEY=your_groq_api_key
+```
 
+Run the backend server:
 ```bash
-cd frontend
+uvicorn main:app --reload
+```
+
+### 3. Frontend Setup
+```bash
+cd ../frontend
 npm install
+```
+
+Create a `.env.local` file in the `frontend/` directory:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+Start the frontend development server:
+```bash
 npm run dev
 ```
 
-Then open `http://localhost:3000`.
-
-Demo accounts:
-
-- Admin: `admin@example.com` / `admin123`
-- User: `user@example.com` / `user123`
-
-For PostgreSQL deployment, set:
-
-```bash
-DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:PORT/DB_NAME
-JWT_SECRET_KEY=replace-this-in-production
-```
-
-## Useful Commands
-
-Generate the demo ticket file:
-
-```bash
-python backend/generate_tickets.py
-```
-
-Try the API directly:
-
-```bash
-curl http://localhost:8000/plot-data
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message":"How many tickets mention billing?"}'
-```
+## 📜 License
+This project is licensed under the MIT License.
