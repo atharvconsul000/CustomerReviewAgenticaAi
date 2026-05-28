@@ -145,7 +145,7 @@ class TicketIndex:
                 from langchain_groq import ChatGroq
 
                 return ChatGroq(
-                    model=os.getenv("GROQ_MODEL", "llama3-70b-8192"),
+                    model=os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
                     temperature=0.2,
                 )
             except Exception:
