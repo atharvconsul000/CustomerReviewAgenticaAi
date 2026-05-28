@@ -121,7 +121,7 @@ class TicketIndex:
                 from langchain_google_genai import ChatGoogleGenerativeAI
 
                 return ChatGoogleGenerativeAI(
-                    model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+                    model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
                     temperature=0.2,
                 )
             except Exception:
