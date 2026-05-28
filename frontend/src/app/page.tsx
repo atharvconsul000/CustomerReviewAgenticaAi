@@ -38,14 +38,7 @@ export default function Home() {
   });
   const [points, setPoints] = useState<PlotPoint[]>([]);
   const [meta, setMeta] = useState({ tickets: 0, embedding_dimensions: 768 });
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content:
-        "Ask for support insights, risks, themes, or counts. Try: What should we fix first for login users?",
-      tool: "Admin AI Ready",
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [notice, setNotice] = useState("");
@@ -73,6 +66,28 @@ export default function Home() {
     loadReviews(token, user.role);
     if (user.role === "admin") loadAdminData(token);
   }, [token, user]);
+
+  useEffect(() => {
+    if (user && messages.length === 0) {
+      if (user.role === "admin") {
+        setMessages([
+          {
+            role: "assistant",
+            content: "Ask for support insights, risks, themes, or counts. Try: What should we fix first for login users?",
+            tool: "Admin AI Ready",
+          },
+        ]);
+      } else {
+        setMessages([
+          {
+            role: "assistant",
+            content: "Hello! Please describe your issue and our AI assistant will help you resolve it.",
+            tool: "Customer Support AI",
+          },
+        ]);
+      }
+    }
+  }, [user, messages.length]);
 
   async function loadReviews(activeToken: string, role: User["role"]) {
     const endpoint = role === "admin" ? "/admin/reviews" : "/reviews";
