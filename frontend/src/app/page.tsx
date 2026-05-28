@@ -224,6 +224,7 @@ export default function Home() {
     setReviews([]);
     setAnalysis(null);
     setPoints([]);
+    setMessages([]);
   }
 
   const traces = useMemo<Data[]>(() => {
