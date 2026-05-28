@@ -316,7 +316,7 @@ class TicketIndex:
             except Exception as e:
                 fallback = self._fallback_semantic_answer(results)
                 fallback.reply = (
-                    f"LLM request failed, so I used vector search fallback.\n\n"
+                    f"LLM request failed ({str(e)}), so I used vector search fallback.\n\n"
                     + fallback.reply
                 )
                 return fallback
@@ -388,7 +388,7 @@ class TicketIndex:
                 )
             except Exception as e:
                 return ChatResponse(
-                    reply="I'm having trouble connecting to my AI brain right now, but a human agent will review your issue soon!",
+                    reply=f"I'm having trouble connecting to my AI brain right now ({str(e)}), but a human agent will review your issue soon!",
                     tool_used="Fallback Message",
                 )
         return ChatResponse(
